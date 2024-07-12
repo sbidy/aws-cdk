@@ -2157,6 +2157,27 @@ describe('vpc', () => {
 
     });
 
+    test('can filter subnets when there are no PRIVATE_WITH_EGRESS type subnets', () => {
+      // GIVEN
+      const stack = getTestStack();
+      const vpc = new Vpc(stack, 'VPC', {
+        subnetConfiguration: [
+          { subnetType: SubnetType.PUBLIC, name: 'ThePublicSubnet' },
+          { subnetType: SubnetType.PRIVATE_ISOLATED, name: 'ThePrivateSubnet' },
+        ],
+      });
+      const a_subnet = vpc.selectSubnets().subnetIds[0];
+
+      // WHEN
+      const subnets = vpc.selectSubnets({
+        subnetFilters: [SubnetFilter.byIds([a_subnet])]
+      });
+
+      // THEN
+      expect(subnets.subnetIds.length).toEqual(1);
+
+    });
+
     test('selecting default subnets in a VPC with only public subnets returns the publics', () => {
       // GIVEN
       const stack = new Stack();
@@ -2667,9 +2688,9 @@ describe('vpc', () => {
       [{ maxAzs: 2, reservedAzs: 1 }, { maxAzs: 3 }],
       [{ maxAzs: 2, reservedAzs: 2 }, { maxAzs: 3, reservedAzs: 1 }],
       [{ maxAzs: 2, reservedAzs: 1, subnetConfiguration: [{ cidrMask: 22, name: 'Public', subnetType: SubnetType.PUBLIC }, { cidrMask: 23, name: 'Private', subnetType: SubnetType.PRIVATE_WITH_EGRESS }] },
-        { maxAzs: 3, subnetConfiguration: [{ cidrMask: 22, name: 'Public', subnetType: SubnetType.PUBLIC }, { cidrMask: 23, name: 'Private', subnetType: SubnetType.PRIVATE_WITH_EGRESS }] }],
+      { maxAzs: 3, subnetConfiguration: [{ cidrMask: 22, name: 'Public', subnetType: SubnetType.PUBLIC }, { cidrMask: 23, name: 'Private', subnetType: SubnetType.PRIVATE_WITH_EGRESS }] }],
       [{ maxAzs: 2, reservedAzs: 1, subnetConfiguration: [{ cidrMask: 22, name: 'Public', subnetType: SubnetType.PUBLIC }, { cidrMask: 23, name: 'Private', subnetType: SubnetType.PRIVATE_WITH_EGRESS, reserved: true }] },
-        { maxAzs: 3, subnetConfiguration: [{ cidrMask: 22, name: 'Public', subnetType: SubnetType.PUBLIC }, { cidrMask: 23, name: 'Private', subnetType: SubnetType.PRIVATE_WITH_EGRESS, reserved: true }] }],
+      { maxAzs: 3, subnetConfiguration: [{ cidrMask: 22, name: 'Public', subnetType: SubnetType.PUBLIC }, { cidrMask: 23, name: 'Private', subnetType: SubnetType.PRIVATE_WITH_EGRESS, reserved: true }] }],
       [{ maxAzs: 2, reservedAzs: 1, ipAddresses: IpAddresses.cidr('192.168.0.0/16') }, { maxAzs: 3, ipAddresses: IpAddresses.cidr('192.168.0.0/16') }],
       [{ availabilityZones: ['dummy1a', 'dummy1b'], reservedAzs: 1 }, { availabilityZones: ['dummy1a', 'dummy1b', 'dummy1c'] }],
     ])('subnets should remain the same going from %p to %p', (propsWithReservedAz, propsWithUsedReservedAz) => {
@@ -2786,13 +2807,13 @@ function getTestStack(): Stack {
   return new Stack(undefined, 'TestStack', { env: { account: '123456789012', region: 'us-east-1' } });
 }
 
-function toCfnTags(tags: any): Array<{Key: string; Value: string}> {
-  return Object.keys(tags).map( key => {
+function toCfnTags(tags: any): Array<{ Key: string; Value: string; }> {
+  return Object.keys(tags).map(key => {
     return { Key: key, Value: tags[key] };
   });
 }
 
-function hasTags(expectedTags: Array<{Key: string; Value: string}>) {
+function hasTags(expectedTags: Array<{ Key: string; Value: string; }>) {
   return {
     Properties: {
       Tags: Match.arrayWith(expectedTags),
